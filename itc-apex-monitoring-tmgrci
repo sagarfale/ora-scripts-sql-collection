@@ -1,0 +1,120 @@
+#!/bin/bash
+###################################################################################################
+##
+## Author :               Sagar Fale
+##
+## Usage :                The scripts checks Apex logs  (itc_apex_text_tmgrci_monitoring.sh)
+##
+###################################################################################################
+script_base=/home/oracle/scripts_itc
+HOSTNAME=`hostname`
+dir_name=/home/oracle/scripts_itc/apex_checks/
+HOST=`hostname | awk -F\. '{print $1}'`
+tlog=`date "+apex_checks-%d%b%Y_%H%M".log`
+script_base=/home/oracle/scripts_itc
+logfile=`echo /home/oracle/scripts_itc/apex_checks/log/${tlog}`
+
+echo "WEBLOGIC_PROD_APEX_LOGIN_PAGE='http://vlmgrcebsdb02n.oci.mgrc.com:7001/console'"  > ${dir_name}/url.txt
+echo "APEX_LOGIN_PAGE='https://apex-test.oci.mgrc.com/ords/f?p=4550'" >> ${dir_name}/url.txt
+echo "ROCC_LOGIN_PAGE='https://apex-test.oci.mgrc.com/ords/f?p=105'" >> ${dir_name}/url.txt
+
+
+MAIL_LIST=dba-team-tower-b@itconvergence.com,sfale@itconvergence.com,mmulasi@itconvergence.com,bbhakta@itconvergence.com
+
+[ -d "/home/oracle/scripts_itc/apex_checks/log" ] || mkdir -p "/home/oracle/scripts_itc/apex_checks/log"
+
+TEMPFILE="/home/oracle/scripts_itc/apex_checks/get_wls_serverstate.py"
+
+sendemail_mgrc_t()
+   {
+      (
+         echo "Subject: ${tempvalue}"
+         echo "TO: $MAIL_LIST"
+         echo "FROM: tmgrci-apex-mgrc@mgrc.com"
+         echo "MIME-Version: 1.0"
+         echo "Content-Type: text/html"
+         echo "Content-Disposition: inline"
+         cat $ATTACHFILE
+      )  | /usr/sbin/sendmail $MAIL_LIST -t
+}
+
+
+
+login_page_url_check()
+{
+echo ""
+echo  "$Application URL:" >> ${dir_name}/apex.info
+URLS=$(grep "LOGIN_PAGE" "${dir_name}/url.txt" | sed "s/\(.*\)=\(.*\)/\1='\2'/")
+
+while read -r line; do
+    eval "$line"
+    url=$(echo "$line" | cut -d= -f2 | sed "s/'//g")
+    if wget -q --spider "$url" --no-check-certificate ; then
+    echo  -e "$(echo "$line" | sed "s/'//g") \t\t : OK" >> ${dir_name}/apex.info
+    else
+    echo  -e "$(echo "$line" | sed "s/'//g") \t\t: FAILED" >> ${dir_name}/apex.info
+    fi
+
+done <<< "$URLS"
+}
+
+apex_checks()
+{
+    cd /u01/app/oracle/Middleware/WeblogicHome/user_projects/domains/APXTEST_domain/bin
+    . setDomainEnv.sh
+    /u01/app/oracle/Middleware/WeblogicHome/oracle_common/common/bin/wlst.sh "${TEMPFILE}" | grep  -i Current > /tmp/apex.log
+    #java weblogic.WLST ${TEMPFILE}  | grep  -i Current > /tmp/apex.log
+    echo "" > ${dir_name}/apex.info
+    echo "Weblogic Admin/MS :" >>  ${dir_name}/apex.info
+    cat /tmp/apex.log >> ${dir_name}/apex.info
+    echo "" >> ${dir_name}/apex.info
+}
+
+
+# List of log files to backup
+log_files=(
+  "/u01/app/oracle/Middleware/WeblogicHome/user_projects/domains/APXTEST_domain/servers/AdminServer/logs/AdminServer.log"
+  "/u01/app/oracle/Middleware/WeblogicHome/user_projects/domains/APXTEST_domain/servers/ApexTest_MS/logs/ApexTest_MS.log"  
+)
+
+# Loop through each log file and backup
+for log_file in "${log_files[@]}"
+do
+  cp "$log_file" "$log_file.bkp"
+  sleep 300
+done
+
+# Compare backup files to original files and filter for specific messages
+for log_file in "${log_files[@]}"
+do
+  diff "$log_file.bkp" "$log_file" | grep -iE "The request timed out|java.lang.OutOfMemoryError|Session timeout exceeded|Maximum sessions exceeded|Connection timeout|Too many active connections|Failed to connect to server" > "$log_file.diff"
+  if [ -s "$log_file.diff" ]; then
+    log_file_name=$(basename "$log_file")
+    echo "ALARM: The following messages were found in the log diff for $log_file_name:"
+    apex_checks
+    login_page_url_check
+    echo "" >> ${dir_name}/apex.info
+    echo "Info :"
+    cat "$log_file.diff" >> ${dir_name}/apex.info
+    echo "" >> ${dir_name}/apex.info
+    echo -e "Logfile name:\t\t\t\t $log_file" >> ${dir_name}/apex.info
+    echo "" >> ${dir_name}/apex.info
+    ATTACHFILE="${dir_name}/apex.info"    
+    tempvalue=`echo "MGRC PROD APEX  --> $HOSTNAME Issues reported "`
+    echo "<html>
+    <head>
+    <title>Example</title>
+    </head>
+    <body>
+    <pre>
+    $(cat ${dir_name}/apex.info)
+    </pre>
+    </body>
+    </html>" > ${dir_name}/apex.html
+    ATTACHFILE="${dir_name}/apex.html"  
+    sendemail_mgrc_t $ATTACHFILE
+  fi
+done
+
+
+
