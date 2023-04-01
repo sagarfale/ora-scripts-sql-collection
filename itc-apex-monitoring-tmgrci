@@ -14,12 +14,12 @@ tlog=`date "+apex_checks-%d%b%Y_%H%M".log`
 script_base=/home/oracle/scripts_itc
 logfile=`echo /home/oracle/scripts_itc/apex_checks/log/${tlog}`
 
-echo "WEBLOGIC_PROD_APEX_LOGIN_PAGE='http://vlmgrcebsdb02n.oci.mgrc.com:7001/console'"  > ${dir_name}/url.txt
-echo "APEX_LOGIN_PAGE='https://apex-test.oci.mgrc.com/ords/f?p=4550'" >> ${dir_name}/url.txt
-echo "ROCC_LOGIN_PAGE='https://apex-test.oci.mgrc.com/ords/f?p=105'" >> ${dir_name}/url.txt
+echo "WEBLOGIC_PROD_APEX_LOGIN_PAGE='http://XXXXXXXXXXXXXXXXXXXXX:7001/console'"  > ${dir_name}/url.txt
+echo "APEX_LOGIN_PAGE='https://XXXXXXXXXXXXXXXXXXXXX/ords/f?p=4550'" >> ${dir_name}/url.txt
+echo "ROCC_LOGIN_PAGE='https://XXXXXXXXXXXXXXXXXXXXX/ords/f?p=105'" >> ${dir_name}/url.txt
 
 
-MAIL_LIST=dba-team-tower-b@itconvergence.com,sfale@itconvergence.com,mmulasi@itconvergence.com,bbhakta@itconvergence.com
+MAIL_LIST=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 [ -d "/home/oracle/scripts_itc/apex_checks/log" ] || mkdir -p "/home/oracle/scripts_itc/apex_checks/log"
 
