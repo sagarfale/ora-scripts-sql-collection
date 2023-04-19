@@ -119,7 +119,7 @@ then
     exit 1
   fi
 
-  . /pmgrci/applmgr/EBSapps.env run 2>/dev/null
+  . /home/applmgr/EBSapps.env run 2>/dev/null
   if [ $? -ne 0 ]
   then
     printf "\nERROR: Unable to load Apps environment...Aborting...\n\n"
